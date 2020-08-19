@@ -8,10 +8,11 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.view.LayoutInflater
 import android.view.TextureView
+import android.view.View
 import androidx.databinding.DataBindingUtil
 import com.baling.camera2OpenGl.databinding.ActivityMainBinding
 
-class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener {
+class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, View.OnClickListener {
     lateinit var mBinding: ActivityMainBinding
     lateinit var mSurfaceTexture: SurfaceTexture
     lateinit var mCapture: CameraCapture
@@ -25,6 +26,7 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener {
                 R.layout.activity_main, null, false
             )
         setContentView(mBinding.root)
+        mBinding.click = this
         mRenderThread.start()
         mRenderHandler = Handler(mRenderThread.looper)
         mCapture = CameraCapture(this)
@@ -67,5 +69,12 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener {
 
     override fun onCaptureCompleted() {
 
+    }
+
+    override fun onClick(v: View?) {
+        when (v!!.id) {
+            R.id.tv_take_photo ->
+                mCapture.takePicture()
+        }
     }
 }

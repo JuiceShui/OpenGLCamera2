@@ -2,20 +2,34 @@ package com.baling.camera2OpenGl
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.ImageFormat
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
-import android.hardware.camera2.CameraDevice.StateCallback
+import android.media.ImageReader
+import android.os.Environment
 import android.os.Handler
 import android.util.Size
 import android.view.Surface
+import android.widget.Toast
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import java.io.File
+import java.io.FileOutputStream
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
-class CameraCapture(mContext: Context) {
+
+class CameraCapture(context: Context) {
     private val mCameraManager: CameraManager =
-        mContext.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     var mListener: CaptureListener? = null
-    var mHandler: Handler?=null
+    var mHandler: Handler? = null
     lateinit var mSurface: Surface
-    lateinit var mCameraDevice: CameraDevice
+    var mCameraDevice: CameraDevice? = null
+    var mCameraSession: CameraCaptureSession? = null
+    var mImageReader: ImageReader? = null
+    var mSensorOrientation: Int? = 0
+    private val mSavePhotoExecutor: Executor = Executors.newSingleThreadExecutor()
+    val mContext = context
     private val mOpenCameraCallback = object : CameraDevice.StateCallback() {
         override fun onOpened(camera: CameraDevice) {
             openCameraSession(camera)
@@ -34,6 +48,7 @@ class CameraCapture(mContext: Context) {
         }
 
         override fun onConfigured(session: CameraCaptureSession) {
+            mCameraSession = session
             requestPreview(session)
         }
 
@@ -51,6 +66,10 @@ class CameraCapture(mContext: Context) {
         }
     }
 
+    private val mImageReaderListener =
+        ImageReader.OnImageAvailableListener {
+            savePicture(it)
+        }
 
     @SuppressLint("Recycle", "MissingPermission")
     fun openCamera(
@@ -66,14 +85,21 @@ class CameraCapture(mContext: Context) {
         mListener = listener
 
         for (id in mCameraManager.cameraIdList) {
-            val cameraCharacteristics = mCameraManager.getCameraCharacteristics(id)
-            if (cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) == facing) {
+            val cameraCharacteristics = mCameraManager.getCameraCharacteristics(id)//获取相机参数
+            if (cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) == facing) {//获取需要的朝向相机参数
                 //获取到对应方向的摄像头
                 val sizes =
                     cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
-                        .getOutputSizes(SurfaceTexture::class.java)
+                        .getOutputSizes(SurfaceTexture::class.java)//获取预览surface的可用尺寸列表
                 val size = getMostSuitableSize(sizes, width, height)
-                preview.setDefaultBufferSize(size!!.width, size.height)
+
+                val photoSizes =
+                    cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+                        .getOutputSizes(ImageReader::class.java)//获取拍照imageReader的可用尺寸列表
+                mImageReader = getImageReader(getMostSuitableSize(photoSizes, width, height))
+                preview.setDefaultBufferSize(size!!.width, size.height)//设置预览尺寸
+                mSensorOrientation =
+                    cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)!!//获取当前的手机朝向
                 mCameraManager.openCamera(
                     id, mOpenCameraCallback, handler
                 )
@@ -117,18 +143,76 @@ class CameraCapture(mContext: Context) {
 
     fun openCameraSession(camera: CameraDevice) {
         mCameraDevice = camera
-        val outputs = listOf(mSurface)
+        val outputs = listOf(
+            mSurface,
+            mImageReader!!.surface
+        )//摄像头数据输出的对象可以有多个，这里传递了一个预览的surface，一个拍照用的ImageReader
         camera.createCaptureSession(outputs, mCreateSessionCallback, mHandler)
-
     }
 
     fun requestPreview(session: CameraCaptureSession) {
-        val builder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+        val builder = mCameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
         builder.addTarget(mSurface)
-        session.setRepeatingRequest(builder.build(), mCaptureCallback, mHandler)
+        session.setRepeatingRequest(builder.build(), mCaptureCallback, mHandler)//开启预览
+    }
+
+    private fun getImageReader(size: Size?): ImageReader {
+        val imageReader = ImageReader.newInstance(size!!.width, size.height, ImageFormat.JPEG, 5)
+        imageReader.setOnImageAvailableListener(mImageReaderListener, mHandler)
+        return imageReader
+    }
+
+    fun takePicture() {
+        val builder = mCameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+        builder!!.addTarget(mSurface)
+        builder.addTarget(mImageReader!!.surface)
+        builder.set(CaptureRequest.JPEG_ORIENTATION, mSensorOrientation)
+        mCameraSession!!.capture(builder.build(), mCaptureCallback, mHandler)//开始拍照
+    }
+
+    fun closeCamera() {
+        mCameraDevice?.close()
+        mCameraDevice = null
+        mCameraSession?.close()
+        mCameraSession = null
+    }
+
+    private fun savePicture(reader: ImageReader) {
+        val image = reader.acquireNextImage()
+        val time = System.currentTimeMillis()
+        val name = "Image_$time.jpg"
+        mSavePhotoExecutor.execute(Runnable {
+            val file = File(getWavFileDir(mContext), name)
+            AndroidSchedulers.mainThread().createWorker().schedule(Runnable {
+                Toast.makeText(mContext, file.path, Toast.LENGTH_SHORT).show()
+            })
+            val byteBuffer = image.planes[0].buffer
+            val bytes = ByteArray(byteBuffer.remaining())
+            byteBuffer.get(bytes)
+            FileOutputStream(file).write(bytes)
+            image.close()
+        })
+
     }
 
     interface CaptureListener {
         fun onCaptureCompleted()
+    }
+
+    private fun getFileDir(context: Context): File? {
+        var filesDir = context.getExternalFilesDir(null)
+        if (filesDir == null) {
+            filesDir = context.filesDir
+        }
+        return filesDir
+    }
+
+    private fun getWavFileDir(context: Context?): File? {
+        val fileDir = getFileDir(context!!)!!
+        val wavFileDir = File(fileDir, "hhh")
+        if (!wavFileDir.exists()) {
+            wavFileDir.mkdirs()
+        }
+        return wavFileDir
     }
 }
