@@ -77,4 +77,9 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, View.On
                 mCapture.takePicture()
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mCapture.closeCamera()
+    }
 }

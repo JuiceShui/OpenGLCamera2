@@ -6,7 +6,6 @@ import android.graphics.ImageFormat
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
 import android.media.ImageReader
-import android.os.Environment
 import android.os.Handler
 import android.util.Size
 import android.view.Surface
@@ -22,14 +21,14 @@ class CameraCapture(context: Context) {
     private val mCameraManager: CameraManager =
         context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     var mListener: CaptureListener? = null
-    var mHandler: Handler? = null
-    lateinit var mSurface: Surface
-    var mCameraDevice: CameraDevice? = null
+    private var mHandler: Handler? = null
+    private lateinit var mSurface: Surface
+    private var mCameraDevice: CameraDevice? = null
     var mCameraSession: CameraCaptureSession? = null
-    var mImageReader: ImageReader? = null
-    var mSensorOrientation: Int? = 0
+    private var mImageReader: ImageReader? = null
+    private var mSensorOrientation: Int? = 0
     private val mSavePhotoExecutor: Executor = Executors.newSingleThreadExecutor()
-    val mContext = context
+    private val mContext = context
     private val mOpenCameraCallback = object : CameraDevice.StateCallback() {
         override fun onOpened(camera: CameraDevice) {
             openCameraSession(camera)
@@ -150,18 +149,21 @@ class CameraCapture(context: Context) {
         camera.createCaptureSession(outputs, mCreateSessionCallback, mHandler)
     }
 
+    //开启预览
     fun requestPreview(session: CameraCaptureSession) {
         val builder = mCameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
         builder.addTarget(mSurface)
         session.setRepeatingRequest(builder.build(), mCaptureCallback, mHandler)//开启预览
     }
 
+    //配置imageReader
     private fun getImageReader(size: Size?): ImageReader {
         val imageReader = ImageReader.newInstance(size!!.width, size.height, ImageFormat.JPEG, 5)
         imageReader.setOnImageAvailableListener(mImageReaderListener, mHandler)
         return imageReader
     }
 
+    //执行拍照
     fun takePicture() {
         val builder = mCameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
         builder!!.addTarget(mSurface)
@@ -170,6 +172,7 @@ class CameraCapture(context: Context) {
         mCameraSession!!.capture(builder.build(), mCaptureCallback, mHandler)//开始拍照
     }
 
+    //关闭相机
     fun closeCamera() {
         mCameraDevice?.close()
         mCameraDevice = null
@@ -177,6 +180,7 @@ class CameraCapture(context: Context) {
         mCameraSession = null
     }
 
+    //保存图片
     private fun savePicture(reader: ImageReader) {
         val image = reader.acquireNextImage()
         val time = System.currentTimeMillis()
