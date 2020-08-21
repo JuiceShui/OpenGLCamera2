@@ -13,7 +13,7 @@ class EGLHelper {
     private var mEGLContext: EGLContext? = null
     private var mEGLSurface: EGLSurface? = null
     private lateinit var mSurfaceTexture: SurfaceTexture
-
+    private var mTextureId: Int = -1
     fun initEGL(surfaceTexture: SurfaceTexture) {
         mSurfaceTexture = surfaceTexture
         mEGLDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
@@ -25,6 +25,18 @@ class EGLHelper {
         mEGLContext = createEGLContext(mEGLDisplay, mEGLConfig)
         mEGLSurface = createEGLSurface(Surface(mSurfaceTexture))
         makeCurrent(mEGLSurface!!)
+    }
+
+    fun initEGL() {
+        mEGLDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
+        if (mEGLDisplay == EGL14.EGL_NO_DISPLAY) {
+            return
+        }
+        EGL14.eglInitialize(mEGLDisplay, null, 0, null, 0)
+        mEGLConfig = chooseEGLConfig(mEGLDisplay)
+        mEGLContext = createEGLContext(mEGLDisplay, mEGLConfig)
+        //mEGLSurface = createEGLSurface(Surface(mSurfaceTexture))
+        //makeCurrent(mEGLSurface!!)
     }
 
     //选择EGLConfig
@@ -66,7 +78,7 @@ class EGLHelper {
     }
 
     //创建EGLSurface
-    private fun createEGLSurface(surface: Surface): EGLSurface {
+    fun createEGLSurface(surface: Surface): EGLSurface {
         val attrList = intArrayOf(EGL14.EGL_NONE)
         return EGL14.eglCreateWindowSurface(
             mEGLDisplay, mEGLConfig, surface, attrList, 0
@@ -81,6 +93,15 @@ class EGLHelper {
     //指定绘制界面
     fun makeCurrent() {
         EGL14.eglMakeCurrent(mEGLDisplay, mEGLSurface, mEGLSurface, mEGLContext)
+    }
+
+    //绘制
+    fun swapBuffers(eglSurface: EGLSurface?) {
+        EGL14.eglSwapBuffers(mEGLDisplay, eglSurface)
+    }
+
+    fun swapBuffers() {
+        EGL14.eglSwapBuffers(mEGLDisplay, mEGLSurface)
     }
 
     //完后后销毁
@@ -108,6 +129,23 @@ class EGLHelper {
             return -1
         }
         return program
+    }
+
+    fun deleteProgram(program: Int) {
+        GLES20.glDeleteProgram(program)
+    }
+
+    fun setPresentationTime(eglSurface: EGLSurface?, nsecs: Long) {
+        EGLExt.eglPresentationTimeANDROID(mEGLDisplay, eglSurface, nsecs)
+    }
+
+    fun getTexture(): Int {
+        if (mTextureId == -1) {
+            val textures = intArrayOf(1)
+            GLES20.glGenTextures(1, textures, 0)
+            mTextureId = textures[0]
+        }
+        return mTextureId
     }
 
     fun loadShader(shaderType: Int, sourceStream: InputStream): Int {
