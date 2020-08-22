@@ -1,6 +1,6 @@
 package com.baling.camera2OpenGl.shader
 
-class ReverseShader : NormalShader() {
+class ReverseShader : BasicShader() {
     private val DECOLOR_MATRIX = floatArrayOf(
         -1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, -1.0f, 0.0f, 1.0f,
