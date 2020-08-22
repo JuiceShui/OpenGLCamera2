@@ -20,9 +20,9 @@ abstract class NormalShader : IShader {
 
     val TEXTURE_COORD = floatArrayOf(
         0.0f, 0.0f,
-        0.0f, 1.0f,
+        1.0f, 0.0f,
         1.0f, 1.0f,
-        1.0f, 0.0f
+        0.0f, 1.0f
     )
 
     val ORDERS = shortArrayOf(
