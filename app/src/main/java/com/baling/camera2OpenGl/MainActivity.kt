@@ -1,23 +1,37 @@
 package com.baling.camera2OpenGl
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCharacteristics
+import android.media.MediaRecorder
+import android.opengl.EGLSurface
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
-import android.view.LayoutInflater
-import android.view.Surface
-import android.view.TextureView
-import android.view.View
+import android.view.*
+import android.view.View.*
+import android.widget.CompoundButton
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.databinding.DataBindingUtil
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.baling.camera2OpenGl.databinding.ActivityMainBinding
-import com.baling.camera2OpenGl.shader.NormalShader
+import com.baling.camera2OpenGl.shader.*
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
+import java.io.File
+import java.util.*
 
-class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, View.OnClickListener {
+class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClickListener,
+    ShaderAdapter.OnSelectShaderListener {
+
+    private val VIDEO_BIT_RATE = 1024 * 1024 * 1024
+    private val VIDEO_FRAME_RATE = 30
+    private val AUDIO_BIT_RATE = 44800
+
     lateinit var mBinding: ActivityMainBinding
     lateinit var mSurfaceTexture: SurfaceTexture
     var mCapture: CameraCapture? = null
@@ -29,6 +43,9 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, View.On
     var mIsCameraOpen = false
     var mCameraFacing = CameraCharacteristics.LENS_FACING_BACK
     var mTransformMatrix = FloatArray(16)
+    var mMediaRecorder: MediaRecorder? = null
+    var mRecordSurface: EGLSurface? = null
+    var mLastVideo: File? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mBinding =
@@ -37,9 +54,51 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, View.On
                 R.layout.activity_main, null, false
             )
         setContentView(mBinding.root)
+        val shaders =
+            object : ArrayList<ShaderAdapter.ShaderInfo?>() {
+                init {
+                    add(ShaderAdapter.ShaderInfo(R.string.shader_normal, NormalShader::class.java))
+                    add(
+                        ShaderAdapter.ShaderInfo(
+                            R.string.shader_decolor,
+                            DecolorShader::class.java
+                        )
+                    )
+                    add(
+                        ShaderAdapter.ShaderInfo(
+                            R.string.shader_reversal,
+                            ReverseShader::class.java
+                        )
+                    )
+                    add(
+                        ShaderAdapter.ShaderInfo(
+                            R.string.shader_nostalgia,
+                            NostalgiaShader::class.java
+                        )
+                    )
+                }
+            }
+        val layoutManager: RecyclerView.LayoutManager = LinearLayoutManager(
+            this, LinearLayoutManager.HORIZONTAL, false
+        )
+        mBinding.shaderSelector.layoutManager = layoutManager
+        val adaptor = ShaderAdapter(mBinding.shaderSelector, shaders)
+        adaptor.setOnSelectShaderListener(this)
+        mBinding.shaderSelector.adapter = adaptor
         mBinding.click = this
         mRenderThread.start()
         mRenderHandler = Handler(mRenderThread.looper)
+        mBinding.record.setOnCheckedChangeListener(object : CompoundButton.OnCheckedChangeListener {
+            override fun onCheckedChanged(buttonView: CompoundButton?, isChecked: Boolean) {
+                if (isChecked) {
+                    mRecordSurface = startRecord(genFileName())
+                } else {
+                    if (mMediaRecorder != null) {
+                        stopRecord()
+                    }
+                }
+            }
+        })
         mBinding.texture.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureSizeChanged(
                 surface: SurfaceTexture?,
@@ -124,31 +183,101 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, View.On
     }
 
     fun makeFullscreen() {
-        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
-                or View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        window.decorView.systemUiVisibility = (SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+                or SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                or SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
     override fun onCaptureCompleted() {
         mCameraTexture.updateTexImage()
         mCameraTexture.getTransformMatrix(mTransformMatrix)
         mSurfaceRender.render(mTransformMatrix)
+        if (mRecordSurface != null) {
+            mSurfaceRender.render(mTransformMatrix, mRecordSurface!!)
+            mEGLHelper.setPresentationTime(mRecordSurface, mSurfaceTexture.timestamp)
+        }
     }
 
     override fun onClick(v: View?) {
         when (v!!.id) {
-            R.id.tv_take_photo ->
+            R.id.take_photo ->
                 mCapture!!.takePicture()
-            R.id.tv_switch ->
+            R.id.switch_camera ->
                 switchCamera()
+            R.id.play_video -> {
+                val uri = FileProvider.getUriForFile(
+                    this, BuildConfig.APPLICATION_ID + ".fileprovider",
+                    mLastVideo!!
+                )
+                val intent = Intent(Intent.ACTION_VIEW)
+                intent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                intent.setDataAndType(uri, "video/*")
+                startActivity(intent)
+            }
+            R.id.select_shader -> {
+                mBinding.shaderSelector.visibility = VISIBLE
+                mBinding.selectShader.visibility = GONE
+            }
         }
+    }
+
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        if (mBinding.shaderSelector.visibility == VISIBLE
+            && event!!.action == MotionEvent.ACTION_UP
+        ) {
+            mBinding.selectShader.visibility = VISIBLE
+            mBinding.shaderSelector.visibility = GONE
+        }
+        return super.onTouchEvent(event)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         mCapture!!.closeCamera()
+    }
+
+    fun genFileName(): String {
+        return "video_" + System.currentTimeMillis() + ".mp4"
+
+    }
+
+    fun startRecord(fileName: String): EGLSurface {
+        mBinding.playVideo.visibility = GONE
+        mLastVideo = File(FileUtils.getMediaFileDir(this), fileName)
+        mMediaRecorder = MediaRecorder()
+        mMediaRecorder!!.setAudioSource(MediaRecorder.AudioSource.MIC)
+        mMediaRecorder!!.setVideoSource(MediaRecorder.VideoSource.SURFACE)
+        mMediaRecorder!!.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+        mMediaRecorder!!.setOutputFile(mLastVideo!!.path)
+        mMediaRecorder!!.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+        mMediaRecorder!!.setVideoEncodingBitRate(VIDEO_BIT_RATE)
+        mMediaRecorder!!.setVideoSize(mBinding.texture.width, mBinding.texture.height)
+        mMediaRecorder!!.setVideoFrameRate(VIDEO_FRAME_RATE)
+        mMediaRecorder!!.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+        mMediaRecorder!!.setAudioEncodingBitRate(AUDIO_BIT_RATE)
+        mMediaRecorder!!.setOrientationHint(0)
+        try {
+            mMediaRecorder!!.prepare()
+        } catch (e: Exception) {
+            Toast.makeText(this, "MediaRecorder failed on prepare()", Toast.LENGTH_LONG).show()
+        }
+        mMediaRecorder!!.start()
+        return mEGLHelper.createEGLSurface(mMediaRecorder!!.surface)
+    }
+
+    fun stopRecord() {
+        mBinding.playVideo.visibility = VISIBLE
+        mMediaRecorder!!.stop()
+        mMediaRecorder!!.release()
+        mMediaRecorder = null
+        mEGLHelper.destroyEGLSurface(mRecordSurface!!)
+        mRecordSurface = null
+    }
+
+    override fun onSelectShader(shader: IShader?) {
+        mRenderHandler.post { mSurfaceRender.setShader(this@MainActivity, shader!!) }
     }
 }

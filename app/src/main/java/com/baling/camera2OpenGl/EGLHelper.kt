@@ -6,6 +6,7 @@ import android.view.Surface
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
+import javax.microedition.khronos.opengles.GL10
 
 class EGLHelper {
     private lateinit var mEGLDisplay: EGLDisplay
@@ -85,6 +86,10 @@ class EGLHelper {
         )
     }
 
+    fun destroyEGLSurface(surface: EGLSurface) {
+        EGL14.eglDestroySurface(mEGLDisplay, surface)
+    }
+
     //指定绘制界面
     fun makeCurrent(surface: EGLSurface) {
         EGL14.eglMakeCurrent(mEGLDisplay, surface, surface, mEGLContext)
@@ -136,6 +141,9 @@ class EGLHelper {
     }
 
     fun setPresentationTime(eglSurface: EGLSurface?, nsecs: Long) {
+        if (eglSurface == null) {
+            return
+        }
         EGLExt.eglPresentationTimeANDROID(mEGLDisplay, eglSurface, nsecs)
     }
 
@@ -146,6 +154,30 @@ class EGLHelper {
             mTextureId = textures[0]
         }
         return mTextureId
+    }
+
+    //创建视频数据流的OES TEXTURE
+    fun createTextureID(): Int {
+        val texture = IntArray(1)
+        GLES20.glGenTextures(1, texture, 0)
+        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texture[0])
+        GLES20.glTexParameterf(
+            GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+            GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR.toFloat()
+        )
+        GLES20.glTexParameterf(
+            GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+            GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR.toFloat()
+        )
+        GLES20.glTexParameteri(
+            GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+            GL10.GL_TEXTURE_WRAP_S, GL10.GL_CLAMP_TO_EDGE
+        )
+        GLES20.glTexParameteri(
+            GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+            GL10.GL_TEXTURE_WRAP_T, GL10.GL_CLAMP_TO_EDGE
+        )
+        return texture[0]
     }
 
     fun loadShader(shaderType: Int, sourceStream: InputStream): Int {

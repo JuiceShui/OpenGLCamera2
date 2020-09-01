@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">OpenGlCamera2</string>
+    <string name="shader_normal">原图</string>
+    <string name="shader_decolor">去色</string>
+    <string name="shader_reversal">反相</string>
+    <string name="shader_nostalgia">怀旧</string>
 </resources>

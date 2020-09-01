@@ -152,6 +152,10 @@ class CameraCapture(context: Context) {
     //开启预览
     fun requestPreview(session: CameraCaptureSession) {
         val builder = mCameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+        // 自动对焦
+        builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+        builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
+
         builder.addTarget(mSurface)
         session.setRepeatingRequest(builder.build(), mCaptureCallback, mHandler)//开启预览
     }
@@ -186,7 +190,7 @@ class CameraCapture(context: Context) {
         val time = System.currentTimeMillis()
         val name = "Image_$time.jpg"
         mSavePhotoExecutor.execute(Runnable {
-            val file = File(getWavFileDir(mContext), name)
+            val file = File(FileUtils.getMediaFileDir(mContext), name)
             AndroidSchedulers.mainThread().createWorker().schedule(Runnable {
                 Toast.makeText(mContext, file.path, Toast.LENGTH_SHORT).show()
             })
@@ -201,22 +205,5 @@ class CameraCapture(context: Context) {
 
     interface CaptureListener {
         fun onCaptureCompleted()
-    }
-
-    private fun getFileDir(context: Context): File? {
-        var filesDir = context.getExternalFilesDir(null)
-        if (filesDir == null) {
-            filesDir = context.filesDir
-        }
-        return filesDir
-    }
-
-    private fun getWavFileDir(context: Context?): File? {
-        val fileDir = getFileDir(context!!)!!
-        val wavFileDir = File(fileDir, "hhh")
-        if (!wavFileDir.exists()) {
-            wavFileDir.mkdirs()
-        }
-        return wavFileDir
     }
 }
