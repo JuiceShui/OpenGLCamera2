@@ -19,6 +19,7 @@ import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.baling.camera2OpenGl.databinding.ActivityMainBinding
+import com.baling.camera2OpenGl.encoder.VideoEncoder
 import com.baling.camera2OpenGl.shader.*
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
@@ -91,7 +92,10 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
         mBinding.record.setOnCheckedChangeListener(object : CompoundButton.OnCheckedChangeListener {
             override fun onCheckedChanged(buttonView: CompoundButton?, isChecked: Boolean) {
                 if (isChecked) {
-                    mRecordSurface = startRecord(genFileName())
+                    //mediaRecorder录制
+                    // mRecordSurface = startRecord(genFileName())
+                    //mediaCodeC 编码
+                    mRecordSurface = startRecord()
                 } else {
                     if (mMediaRecorder != null) {
                         stopRecord()
@@ -244,6 +248,9 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
 
     }
 
+    /**
+     * mediaRecorder 录制
+     */
     fun startRecord(fileName: String): EGLSurface {
         mBinding.playVideo.visibility = GONE
         mLastVideo = File(FileUtils.getMediaFileDir(this), fileName)
@@ -266,6 +273,16 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
         }
         mMediaRecorder!!.start()
         return mEGLHelper.createEGLSurface(mMediaRecorder!!.surface)
+    }
+
+    /**
+     * mediaCodeC 编码
+     */
+    fun startRecord(): EGLSurface {
+        val encoder = VideoEncoder()
+        encoder.initConfig(mBinding.texture.width, mBinding.texture.height)
+        encoder.start()
+        return mEGLHelper.createEGLSurface(encoder.getInputSurface())
     }
 
     fun stopRecord() {
