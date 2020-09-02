@@ -35,18 +35,20 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
 
     lateinit var mBinding: ActivityMainBinding
     lateinit var mSurfaceTexture: SurfaceTexture
-    var mCapture: CameraCapture? = null
-    val mRenderThread = HandlerThread("render")
     lateinit var mRenderHandler: Handler
     lateinit var mSurfaceRender: SurfaceRender
     lateinit var mEGLHelper: EGLHelper
     lateinit var mCameraTexture: SurfaceTexture
+
+    var mCapture: CameraCapture? = null
+    val mRenderThread = HandlerThread("render")
     var mIsCameraOpen = false
     var mCameraFacing = CameraCharacteristics.LENS_FACING_BACK
     var mTransformMatrix = FloatArray(16)
     var mMediaRecorder: MediaRecorder? = null
     var mRecordSurface: EGLSurface? = null
     var mLastVideo: File? = null
+    var mEncoder: VideoEncoder? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mBinding =
@@ -100,6 +102,9 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
                     if (mMediaRecorder != null) {
                         stopRecord()
                     }
+                    if (mEncoder != null) {
+                        stopEncode()
+                    }
                 }
             }
         })
@@ -146,53 +151,8 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
         }
     }
 
-    fun openCamera() {
-        mIsCameraOpen = true
-        mCapture!!.openCamera(
-            mCameraTexture,
-            mCameraFacing,
-            mBinding.texture.width,
-            mBinding.texture.height,
-            mRenderHandler,//该参数可为空
-            this@MainActivity
-        )
-    }
-
-    fun closeCamera() {
-        mIsCameraOpen = false;
-        mCapture!!.closeCamera()
-    }
-
-    fun switchCamera() {
-        mCameraFacing =
-            if (mCameraFacing == CameraCharacteristics.LENS_FACING_BACK)
-                CameraCharacteristics.LENS_FACING_FRONT
-            else CameraCharacteristics.LENS_FACING_BACK
-        closeCamera()
-        openCamera()
-
-    }
-
-    override fun onResume() {
-        super.onResume()
-        makeFullscreen()
-        if (!mIsCameraOpen && mCapture != null) {
-            openCamera()
-        }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        closeCamera()
-    }
-
-    fun makeFullscreen() {
-        window.decorView.systemUiVisibility = (SYSTEM_UI_FLAG_LAYOUT_STABLE
-                or SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                or SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
-                or SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
-                or SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+    override fun onSelectShader(shader: IShader?) {
+        mRenderHandler.post { mSurfaceRender.setShader(this@MainActivity, shader!!) }
     }
 
     override fun onCaptureCompleted() {
@@ -238,9 +198,61 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
         return super.onTouchEvent(event)
     }
 
+    override fun onResume() {
+        super.onResume()
+        makeFullscreen()
+        if (!mIsCameraOpen && mCapture != null) {
+            openCamera()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        closeCamera()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         mCapture!!.closeCamera()
+    }
+
+    private fun openCamera() {
+        mIsCameraOpen = true
+        mCapture!!.openCamera(
+            mCameraTexture,
+            mCameraFacing,
+            mBinding.texture.width,
+            mBinding.texture.height,
+            mRenderHandler,//该参数可为空
+            this@MainActivity
+        )
+    }
+
+    private fun closeCamera() {
+        mIsCameraOpen = false;
+        mCapture!!.closeCamera()
+    }
+
+    private fun switchCamera() {
+        mCameraFacing =
+            if (mCameraFacing == CameraCharacteristics.LENS_FACING_BACK)
+                CameraCharacteristics.LENS_FACING_FRONT
+            else CameraCharacteristics.LENS_FACING_BACK
+        closeCamera()
+        openCamera()
+
+    }
+
+    /**
+     * 全屏显示
+     */
+    private fun makeFullscreen() {
+        window.decorView.systemUiVisibility = (SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+                or SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                or SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
     fun genFileName(): String {
@@ -279,10 +291,10 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
      * mediaCodeC 编码
      */
     fun startRecord(): EGLSurface {
-        val encoder = VideoEncoder()
-        encoder.initConfig(mBinding.texture.width, mBinding.texture.height)
-        encoder.start()
-        return mEGLHelper.createEGLSurface(encoder.getInputSurface())
+        mEncoder = VideoEncoder()
+        mEncoder!!.initConfig(mBinding.texture.width, mBinding.texture.height)
+        mEncoder!!.start()
+        return mEGLHelper.createEGLSurface(mEncoder!!.getInputSurface())
     }
 
     fun stopRecord() {
@@ -294,7 +306,7 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
         mRecordSurface = null
     }
 
-    override fun onSelectShader(shader: IShader?) {
-        mRenderHandler.post { mSurfaceRender.setShader(this@MainActivity, shader!!) }
+    fun stopEncode() {
+        mEncoder!!.stop()
     }
 }

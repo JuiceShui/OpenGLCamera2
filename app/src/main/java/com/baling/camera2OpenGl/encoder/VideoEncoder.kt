@@ -9,6 +9,7 @@ import android.view.Surface
 import com.baling.camera2OpenGl.App
 import com.baling.camera2OpenGl.EGLHelper
 import com.baling.camera2OpenGl.FileUtils
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import java.io.BufferedOutputStream
 import java.io.File
@@ -17,25 +18,30 @@ import java.io.IOException
 
 
 class VideoEncoder {
-    lateinit var mCodeC: MediaCodec
+    var mCodeC: MediaCodec? = null
     lateinit var mVideoFormat: MediaFormat
     var mWidth = 0
     var mHeight = 0
     lateinit var mInputSurface: Surface
     lateinit var mEglSurface: EGLSurface
-    var configByte :ByteArray?=null
+    var configByte: ByteArray? = null
     lateinit var mVideoSps: ByteArray
     lateinit var mVideoPps: ByteArray
     private var outputStream: BufferedOutputStream? = null
     var mInputTextureId = 0
     var mInputSurfaceTexture: SurfaceTexture? = null
     val helper: EGLHelper = EGLHelper()
+    var mEncodeDisposable: Disposable? = null
+    var mIsEncoding = false
 
     init {
         createFile()
         helper.initEGL()
     }
 
+    /**
+     * 初始化配置参数
+     */
     fun initConfig(width: Int, height: Int) {
         mWidth = width
         mHeight = height
@@ -49,9 +55,9 @@ class VideoEncoder {
         )
         mCodeC = MediaCodec.createEncoderByType(mVideoFormat.getString(MediaFormat.KEY_MIME)!!)
         //此处不能用mOutputSurface，会configure失败
-        mCodeC.configure(mVideoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        mInputSurface = mCodeC.createInputSurface()
-        mCodeC.start()
+        mCodeC!!.configure(mVideoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        mInputSurface = mCodeC!!.createInputSurface()//获取到编码器提供的渲染surface
+        mCodeC!!.start()
     }
 
     fun getInputSurface(): Surface {
@@ -73,29 +79,34 @@ class VideoEncoder {
         return mInputSurfaceTexture
     }
 
+    /**
+     * 开始编码
+     */
     fun start() {
-        Schedulers.newThread().createWorker().schedule {
+        mIsEncoding = true
+        mEncodeDisposable = Schedulers.newThread().createWorker().schedule {
             val bufferInfo = MediaCodec.BufferInfo()
-            while (true) {
-                var outputIndex = mCodeC.dequeueOutputBuffer(bufferInfo, 10_000)
+            while (mIsEncoding) {//当处于正在编码时进行循环读取数据
+                var outputIndex = mCodeC!!.dequeueOutputBuffer(bufferInfo, 10_000)
                 if (outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
 
-                } else if (outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    var byteBuffer = mCodeC.outputFormat.getByteBuffer("csd-0")
+                } else if (outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {//当编码器开始返回数据开始
+                    //获取数据的配置头信息
+                    var byteBuffer = mCodeC!!.outputFormat.getByteBuffer("csd-0")
                     mVideoSps = ByteArray(byteBuffer!!.remaining())
                     byteBuffer.get(mVideoSps, 0, mVideoSps.size)
 
-                    byteBuffer = mCodeC.outputFormat.getByteBuffer("csd-1")
+                    byteBuffer = mCodeC!!.outputFormat.getByteBuffer("csd-1")
                     mVideoPps = ByteArray(byteBuffer!!.remaining())
                     byteBuffer.get(mVideoPps, 0, mVideoPps.size)
                 } else if (outputIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
 
-                } else if (outputIndex > 0) {
+                } else if (outputIndex > 0) {//图像数据流到达
                     var singleData = byteArrayOf()
-                    while (outputIndex >= 0) {
-                        val outputBuffer = mCodeC.getOutputBuffer(outputIndex)
+                    while (outputIndex >= 0) {//循环读取
+                        val outputBuffer = mCodeC!!.getOutputBuffer(outputIndex)
                         val outData = ByteArray(bufferInfo.size)
-                        outputBuffer!!.get(outData)
+                        outputBuffer!!.get(outData)//读取数据到buffer
                         if (bufferInfo.flags == MediaCodec.BUFFER_FLAG_CODEC_CONFIG) {
                             configByte = ByteArray(bufferInfo.size)
                             configByte = outData
@@ -120,8 +131,8 @@ class VideoEncoder {
                                 singleData = byteMerger(singleData, outData)
                             }
                         }
-                        mCodeC.releaseOutputBuffer(outputIndex, false)
-                        outputIndex = mCodeC.dequeueOutputBuffer(bufferInfo, 1_000)
+                        mCodeC!!.releaseOutputBuffer(outputIndex, false)
+                        outputIndex = mCodeC!!.dequeueOutputBuffer(bufferInfo, 1_000)
                         try {
                             outputStream!!.write(singleData, 0, singleData.size)
                         } catch (e: IOException) {
@@ -131,7 +142,23 @@ class VideoEncoder {
 
                 }
             }
+            //结束，释放资源
+            mCodeC!!.signalEndOfInputStream()
+            mEncodeDisposable!!.dispose()
+            mEncodeDisposable = null
+            mCodeC!!.stop()
+            mCodeC!!.release()
+            mCodeC = null
+            outputStream?.flush()
+            outputStream?.close()
         }
+    }
+
+    /**
+     * 结束编码
+     */
+    fun stop() {
+        mIsEncoding = false
     }
 
     /**
