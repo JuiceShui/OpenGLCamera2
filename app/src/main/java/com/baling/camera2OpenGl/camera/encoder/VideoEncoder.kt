@@ -1,4 +1,4 @@
-package com.baling.camera2OpenGl.encoder
+package com.baling.camera2OpenGl.camera.encoder
 
 import android.graphics.SurfaceTexture
 import android.media.MediaCodec
@@ -6,9 +6,9 @@ import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.opengl.EGLSurface
 import android.view.Surface
-import com.baling.camera2OpenGl.App
-import com.baling.camera2OpenGl.EGLHelper
-import com.baling.camera2OpenGl.FileUtils
+import com.baling.camera2OpenGl.camera.App
+import com.baling.camera2OpenGl.camera.EGLHelper
+import com.baling.camera2OpenGl.camera.FileUtils
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import java.io.BufferedOutputStream

@@ -1,4 +1,4 @@
-package com.baling.camera2OpenGl.shader
+package com.baling.camera2OpenGl.camera.shader
 
 class DecolorShader : BasicShader() {
     private val DECOLOR_MATRIX = floatArrayOf(

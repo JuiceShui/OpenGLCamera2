@@ -1,10 +1,10 @@
-package com.baling.camera2OpenGl
+package com.baling.camera2OpenGl.camera
 
 import android.content.Context
 import android.opengl.EGLSurface
 import android.opengl.GLES20
 import android.view.Surface
-import com.baling.camera2OpenGl.shader.IShader
+import com.baling.camera2OpenGl.camera.shader.IShader
 
 class SurfaceRender(helper: EGLHelper, surface: Surface, width: Int, height: Int) {
     var mEGLHelper: EGLHelper = helper

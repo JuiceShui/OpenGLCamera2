@@ -1,4 +1,4 @@
-package com.baling.camera2OpenGl
+package com.baling.camera2OpenGl.camera
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -18,9 +18,11 @@ import androidx.core.content.FileProvider
 import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.baling.camera2OpenGl.BuildConfig
+import com.baling.camera2OpenGl.R
 import com.baling.camera2OpenGl.databinding.ActivityMainBinding
-import com.baling.camera2OpenGl.encoder.VideoEncoder
-import com.baling.camera2OpenGl.shader.*
+import com.baling.camera2OpenGl.camera.encoder.VideoEncoder
+import com.baling.camera2OpenGl.camera.shader.*
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import java.io.File
@@ -60,7 +62,12 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
         val shaders =
             object : ArrayList<ShaderAdapter.ShaderInfo?>() {
                 init {
-                    add(ShaderAdapter.ShaderInfo(R.string.shader_normal, NormalShader::class.java))
+                    add(
+                        ShaderAdapter.ShaderInfo(
+                            R.string.shader_normal,
+                            NormalShader::class.java
+                        )
+                    )
                     add(
                         ShaderAdapter.ShaderInfo(
                             R.string.shader_decolor,
@@ -85,7 +92,10 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
             this, LinearLayoutManager.HORIZONTAL, false
         )
         mBinding.shaderSelector.layoutManager = layoutManager
-        val adaptor = ShaderAdapter(mBinding.shaderSelector, shaders)
+        val adaptor = ShaderAdapter(
+            mBinding.shaderSelector,
+            shaders
+        )
         adaptor.setOnSelectShaderListener(this)
         mBinding.shaderSelector.adapter = adaptor
         mBinding.click = this
@@ -138,12 +148,19 @@ class MainActivity : AppCompatActivity(), CameraCapture.CaptureListener, OnClick
                     .map {
                         mEGLHelper = EGLHelper()
                         mEGLHelper.initEGL()
-                        mSurfaceRender = SurfaceRender(mEGLHelper, it, width, height)
+                        mSurfaceRender =
+                            SurfaceRender(
+                                mEGLHelper,
+                                it,
+                                width,
+                                height
+                            )
                         mSurfaceRender.setShader(this@MainActivity, NormalShader())
                         mCameraTexture = SurfaceTexture(mEGLHelper.getTexture())
                     }.observeOn(AndroidSchedulers.mainThread())
                     .subscribe {
-                        mCapture = CameraCapture(this@MainActivity)
+                        mCapture =
+                            CameraCapture(this@MainActivity)
                         openCamera()
                     }
             }

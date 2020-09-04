@@ -1,7 +1,7 @@
-package com.baling.camera2OpenGl.shader
+package com.baling.camera2OpenGl.camera.shader
 
 import android.content.Context
-import com.baling.camera2OpenGl.EGLHelper
+import com.baling.camera2OpenGl.camera.EGLHelper
 
 interface IShader {
     fun onAttach(ctx: Context, helper: EGLHelper)

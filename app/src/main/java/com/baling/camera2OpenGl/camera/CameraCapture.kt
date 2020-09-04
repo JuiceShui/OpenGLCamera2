@@ -1,4 +1,4 @@
-package com.baling.camera2OpenGl
+package com.baling.camera2OpenGl.camera
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -190,7 +190,10 @@ class CameraCapture(context: Context) {
         val time = System.currentTimeMillis()
         val name = "Image_$time.jpg"
         mSavePhotoExecutor.execute(Runnable {
-            val file = File(FileUtils.getMediaFileDir(mContext), name)
+            val file = File(
+                FileUtils.getMediaFileDir(
+                    mContext
+                ), name)
             AndroidSchedulers.mainThread().createWorker().schedule(Runnable {
                 Toast.makeText(mContext, file.path, Toast.LENGTH_SHORT).show()
             })

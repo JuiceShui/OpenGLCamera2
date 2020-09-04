@@ -1,4 +1,4 @@
-package com.baling.camera2OpenGl
+package com.baling.camera2OpenGl.camera
 
 import android.app.Application
 

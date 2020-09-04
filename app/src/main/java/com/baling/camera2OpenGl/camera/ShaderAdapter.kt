@@ -1,4 +1,4 @@
-package com.baling.camera2OpenGl
+package com.baling.camera2OpenGl.camera
 
 import android.view.LayoutInflater
 import android.view.View
@@ -7,8 +7,9 @@ import android.widget.TextView
 import androidx.annotation.NonNull
 import androidx.annotation.StringRes
 import androidx.recyclerview.widget.RecyclerView
-import com.baling.camera2OpenGl.ShaderAdapter.Holder
-import com.baling.camera2OpenGl.shader.IShader
+import com.baling.camera2OpenGl.R
+import com.baling.camera2OpenGl.camera.ShaderAdapter.Holder
+import com.baling.camera2OpenGl.camera.shader.IShader
 import java.util.ArrayList
 
 class ShaderAdapter : RecyclerView.Adapter<Holder>, View.OnClickListener {

@@ -1,4 +1,4 @@
-package com.baling.camera2OpenGl
+package com.baling.camera2OpenGl.camera
 
 import android.content.Context
 import java.io.File
@@ -15,7 +15,9 @@ class FileUtils {
         }
 
         fun getMediaFileDir(context: Context?): File? {
-            val fileDir = getFileDir(context!!)!!
+            val fileDir = getFileDir(
+                context!!
+            )!!
             val wavFileDir = File(fileDir, "media")
             if (!wavFileDir.exists()) {
                 wavFileDir.mkdirs()

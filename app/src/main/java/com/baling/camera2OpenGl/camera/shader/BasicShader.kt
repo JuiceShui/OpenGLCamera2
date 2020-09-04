@@ -1,10 +1,10 @@
-package com.baling.camera2OpenGl.shader
+package com.baling.camera2OpenGl.camera.shader
 
 import android.content.Context
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
-import com.baling.camera2OpenGl.EGLHelper
-import com.baling.camera2OpenGl.GLUtils
+import com.baling.camera2OpenGl.camera.EGLHelper
+import com.baling.camera2OpenGl.camera.GLUtils
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 
