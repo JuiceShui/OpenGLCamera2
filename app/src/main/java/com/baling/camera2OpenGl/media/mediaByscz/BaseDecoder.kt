@@ -1,4 +1,4 @@
-package com.baling.camera2OpenGl.openGl.media
+package com.baling.camera2OpenGl.media.mediaByscz
 
 import android.media.MediaCodec
 import android.media.MediaFormat
@@ -323,5 +323,72 @@ abstract class BaseDecoder(val mFilePath: String) : IDecoder {
 
     override fun getCurrentTimeStamp(): Long {
         return mBufferInfo.presentationTimeUs / 1000
+    }
+
+    override fun goOn() {
+        mState = DecodeState.DECODING
+        notifyDecode()
+    }
+
+    override fun pause() {
+        mState = DecodeState.PAUSE
+    }
+
+    override fun stop() {
+        mState == DecodeState.STOP
+        mIsRunning = false
+        notifyDecode()
+    }
+
+    override fun isSeeking(): Boolean {
+        return mState == DecodeState.SEEKING
+    }
+
+    override fun seekTo(pos: Long): Long {
+        return 0
+    }
+
+    override fun seekAndPlay(pos: Long): Long {
+        return 0
+    }
+
+    override fun setStateListener(listener: IDecoderStateListener?) {
+        mStateListener = listener
+    }
+
+    override fun getTrack(): Int {
+        return 0
+    }
+
+    override fun getFilePath(): String {
+        return mFilePath
+    }
+
+    override fun getMediaFormat(): MediaFormat? {
+        return mExtractor?.getFormat()
+    }
+
+    override fun getDuration(): Long {
+        return mDuration
+    }
+
+    override fun getRotationAngle(): Int {
+        return 0
+    }
+
+    override fun getWidth(): Int {
+        return mVideoWidth
+    }
+
+    override fun getHeight(): Int {
+        return mVideoHeight
+    }
+
+    override fun isDecoding(): Boolean {
+        return mState == DecodeState.DECODING
+    }
+
+    override fun isStop(): Boolean {
+        return mState == DecodeState.STOP
     }
 }

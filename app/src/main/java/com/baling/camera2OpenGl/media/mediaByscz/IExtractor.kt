@@ -1,4 +1,4 @@
-package com.baling.camera2OpenGl.openGl.media
+package com.baling.camera2OpenGl.media.mediaByscz
 
 import android.media.MediaFormat
 import java.nio.ByteBuffer

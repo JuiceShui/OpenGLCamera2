@@ -1,4 +1,4 @@
-package com.baling.camera2OpenGl.openGl.media
+package com.baling.camera2OpenGl.media.mediaByscz
 
 import android.media.MediaFormat
 
@@ -77,4 +77,14 @@ interface IDecoder : Runnable {
      * 获取解码的文件路径
      */
     fun getFilePath(): String
+
+    /**
+     * 拖动进度条到
+     */
+    fun seekTo(pos: Long): Long
+
+    /**
+     * 拖动进度条到----并且播放
+     */
+    fun seekAndPlay(pos: Long): Long
 }

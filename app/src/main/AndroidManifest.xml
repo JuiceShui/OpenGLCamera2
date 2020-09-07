@@ -20,13 +20,16 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".camera.MainActivity">
+        <activity android:name=".media.OpenGlPlayActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".camera.MainActivity" />
+        <activity android:name=".media.SimplePlayerActivity" />
+        <activity android:name=".media.SimpleRenderActivity" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
