@@ -20,7 +20,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".media.OpenGlPlayActivity">
+        <activity android:name=".media.MultiMoveScaleOpenGlPlayerActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -30,6 +30,8 @@
         <activity android:name=".camera.MainActivity" />
         <activity android:name=".media.SimplePlayerActivity" />
         <activity android:name=".media.SimpleRenderActivity" />
+        <activity android:name=".media.OpenGlPlayActivity" />
+        <activity android:name=".media.MultiOpenGlPlayerActivity" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

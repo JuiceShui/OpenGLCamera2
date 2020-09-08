@@ -29,18 +29,22 @@ class ShaderString {
         val VIDEO_SHADER_VERTEX: String = "attribute vec4 aPosition;" +
                 "attribute vec2 aCoordinate;" +
                 "varying vec2 vCoordinate;" +
+                "attribute float aAlpha;" +
+                "varying float vAlpha;" +
                 "uniform mat4 uMatrix;" +
                 "void main(){" +
-                "gl_Position=aPosition*uMatrix;" +
+                "gl_Position=uMatrix*aPosition;" +
                 "vCoordinate=aCoordinate;" +
+                "vAlpha=aAlpha;" +
                 "}"
         val VIDEO_SHADER_FRAG: String = "#extension GL_OES_EGL_image_external : require\n" +
                 "precision mediump float;" +
                 "varying vec2 vCoordinate;" +
                 "uniform samplerExternalOES uTexture;" +
+                "varying float vAlpha;" +
                 "void main(){" +
                 "vec4 color=texture2D(uTexture,vCoordinate);" +
-                "gl_FragColor=color;" +
+                "gl_FragColor=vec4(color.r,color.g,color.b,vAlpha);" +
                 "}"
 
         //黑白画面

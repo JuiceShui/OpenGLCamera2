@@ -33,6 +33,7 @@ class VideoDrawer : IDrawer {
     private var mVertexHandler = -1
     private var mCoordinateHandler = -1
     private var mTextureHanlder = -1
+    private var mAlphaHandler = -1
     private var mTextureId = -1
     private var mProgram = -1
     private var mMatrixHandler = -1
@@ -43,6 +44,9 @@ class VideoDrawer : IDrawer {
     private var mMatrix: FloatArray? = null
     private var mSurfaceTexture: SurfaceTexture? = null
     private var mSurfaceTextureCallBack: ((SurfaceTexture) -> Unit)? = null
+    private var mAlpha: Float = 1f
+    private var mWidthRatio = 1f
+    private var mHeightRatio = 1f
 
     init {
         mVertexBuffer = OpenGLTools.getFloatBuffer(VERTEX)
@@ -52,7 +56,8 @@ class VideoDrawer : IDrawer {
 
     override fun draw() {
         if (mTextureId != -1) {
-            initDefaultMatrix()
+            //initDefaultMatrix()
+            initTranslateMatrix()
             createProgram()
             activeTexture()
             updateTexture()
@@ -84,6 +89,7 @@ class VideoDrawer : IDrawer {
     }
 
     override fun setAlpha(alpha: Float) {
+        mAlpha = alpha
     }
 
     override fun getSurfaceTexture(): SurfaceTexture? {
@@ -108,6 +114,7 @@ class VideoDrawer : IDrawer {
             mCoordinateHandler = GLES20.glGetAttribLocation(mProgram, "aCoordinate")
             mTextureHanlder = GLES20.glGetUniformLocation(mProgram, "uTexture")
             mMatrixHandler = GLES20.glGetUniformLocation(mProgram, "uMatrix")
+            mAlphaHandler = GLES20.glGetAttribLocation(mProgram, "aAlpha")
         }
         GLES20.glUseProgram(mProgram)
     }
@@ -142,6 +149,7 @@ class VideoDrawer : IDrawer {
         GLES20.glEnableVertexAttribArray(mVertexHandler)
         GLES20.glEnableVertexAttribArray(mCoordinateHandler)
         GLES20.glEnableVertexAttribArray(mMatrixHandler)
+        GLES20.glEnableVertexAttribArray(mAlphaHandler)
         GLES20.glUniformMatrix4fv(
             mMatrixHandler, 1,
             false, mMatrix, 0
@@ -156,6 +164,7 @@ class VideoDrawer : IDrawer {
             GLES20.GL_FLOAT, false,
             0, mCoordinateBuffer
         )
+        GLES20.glVertexAttrib1f(mAlphaHandler, mAlpha)
         GLES20.glDrawElements(
             GLES20.GL_TRIANGLES,
             ORDER.size,
@@ -184,6 +193,83 @@ class VideoDrawer : IDrawer {
             viewMatrix, 0, 0f, 0f, 5.0f, 0f,
             0f, 0f, 0f, 1f, 0f
         )
-        Matrix.multiplyMM(mMatrix, 0, prjMatrix, 0, viewMatrix, 0)
+        Matrix.multiplyMM(
+            mMatrix, 0, prjMatrix,
+            0, viewMatrix, 0
+        )
+    }
+
+    fun initTranslateMatrix() {
+        if (mMatrix != null) return
+        if (mScreenSize.width == -1 || mScreenSize.height == -1 ||
+            mVideoSize.width == -1 || mVideoSize.height == -1
+        ) {
+            return
+        }
+        mMatrix = FloatArray(16)
+        val prjMatrix = FloatArray(16)
+        val videoRatio = mVideoSize.width / mVideoSize.height.toFloat()
+        val screenRatio = mScreenSize.width / mScreenSize.height.toFloat()
+        if (mScreenSize.width > mScreenSize.height) {
+            if (videoRatio > screenRatio) {
+                mHeightRatio = videoRatio / screenRatio
+                Matrix.orthoM(
+                    prjMatrix, 0,
+                    -mWidthRatio, mWidthRatio,
+                    -mHeightRatio, mHeightRatio,
+                    3f, 5f
+                )
+            } else {
+                mWidthRatio = screenRatio / videoRatio
+                Matrix.orthoM(
+                    prjMatrix, 0,
+                    -mWidthRatio, mWidthRatio,
+                    -mHeightRatio, mHeightRatio,
+                    3f, 5f
+                )
+            }
+        } else {
+            if (videoRatio > screenRatio) {
+                mHeightRatio = videoRatio / screenRatio
+                Matrix.orthoM(
+                    prjMatrix, 0,
+                    -mWidthRatio, mWidthRatio,
+                    -mHeightRatio, mHeightRatio,
+                    3f, 5f
+                )
+            } else {
+                mWidthRatio = screenRatio / videoRatio
+                Matrix.orthoM(
+                    prjMatrix, 0,
+                    -mWidthRatio, mWidthRatio,
+                    -mHeightRatio, mHeightRatio,
+                    3f, 5f
+                )
+            }
+        }
+        val viewMatrix = FloatArray(16)
+        Matrix.setLookAtM(
+            viewMatrix, 0,
+            0f, 0f, 5.0f,
+            0f, 0f, 0f,
+            0f, 1.0f, 0f
+        )
+        Matrix.multiplyMM(
+            mMatrix, 0, prjMatrix,
+            0, viewMatrix, 0
+        )
+    }
+
+    fun translate(dx: Float, dy: Float) {
+        Matrix.translateM(
+            mMatrix, 0, dx * mWidthRatio * 2,
+            -dy * mHeightRatio * 2, 0f
+        )
+    }
+
+    fun scale(scaleX: Float, scaleY: Float) {
+        Matrix.scaleM(mMatrix, 0, scaleX, scaleY, 1f)
+        mWidthRatio /= scaleX
+        mHeightRatio /= scaleY
     }
 }

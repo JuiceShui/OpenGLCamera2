@@ -83,4 +83,24 @@ class OpenGLTools {
             return prjMatrix
         }
     }
+
+    fun getWidthHeightRatio(videoSize: Size, screenSize: Size): FloatArray {
+        val videoRatio = videoSize.width.toFloat() / videoSize.height.toFloat()
+        val screenRatio = screenSize.width.toFloat() / screenSize.height.toFloat()
+        val widthHeightArray = floatArrayOf(1f, 1f)
+        if (screenSize.width > screenSize.height) {
+            if (videoRatio > screenRatio) {
+                widthHeightArray[1] = videoRatio / screenRatio
+            } else {
+                widthHeightArray[0] = screenRatio / videoRatio
+            }
+        } else {
+            if (videoRatio > screenRatio) {
+                widthHeightArray[1] = videoRatio / screenRatio
+            } else {
+                widthHeightArray[0] = screenRatio / videoRatio
+            }
+        }
+        return widthHeightArray
+    }
 }

@@ -9,9 +9,16 @@ import javax.microedition.khronos.opengles.GL10
 
 class SimpleRender : GLSurfaceView.Renderer {
     private val mDrawers = mutableListOf<IDrawer>()
-    override fun onDrawFrame(gl: GL10?) {
-        mDrawers.forEach {
-            it.draw()
+    override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        GLES20.glClearColor(0f, 0f, 0f, 0f)
+        //开启混合模式
+        GLES20.glEnable(GLES20.GL_BLEND)
+        // FIXME: 2020/9/8
+        //配置混合算法  TODO GL_SRC_ALPHA会黑屏？？？为什么
+        GLES20.glBlendFunc(GLES20.GL_DST_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        val textureId = OpenGLTools.genTexture(mDrawers.size)
+        for ((id, drawer) in mDrawers.withIndex()) {
+            drawer.setTextureID(textureId[id])
         }
     }
 
@@ -22,11 +29,13 @@ class SimpleRender : GLSurfaceView.Renderer {
         }
     }
 
-    override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        GLES20.glClearColor(0f, 0f, 0f, 0f)
-        val textureId = OpenGLTools.genTexture(mDrawers.size)
-        for ((id, drawer) in mDrawers.withIndex()) {
-            drawer.setTextureID(textureId[id])
+    override fun onDrawFrame(gl: GL10?) {
+        GLES20.glClear(
+            GLES20.GL_COLOR_BUFFER_BIT
+                    or GLES20.GL_DEPTH_BUFFER_BIT
+        )
+        mDrawers.forEach {
+            it.draw()
         }
     }
 
