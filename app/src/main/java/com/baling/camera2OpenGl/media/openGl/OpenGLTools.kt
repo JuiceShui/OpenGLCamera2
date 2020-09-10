@@ -104,7 +104,7 @@ object OpenGLTools {
     }
 
     //创建FBO纹理
-    fun createFBOTexture(width: Int, height: Int): IntArray {
+    fun createFBOTexture(width: Int, height: Int): Int {
         val texture = IntArray(1)
         //新建纹理
         GLES20.glGenTextures(1, texture, 0)
@@ -144,7 +144,7 @@ object OpenGLTools {
         )
         //解绑纹理
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
-        return texture
+        return texture[0]
     }
 
     //新建frameBuffer 返回frameBuffer的索引

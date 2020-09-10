@@ -54,22 +54,28 @@ class ShaderString {
                 "uniform float progress;" +
                 "uniform int drawFBO;" +
                 "uniform sampler2D uSoulTexture;" +
-                "void main(){" +
-                //透明度 [0,0.4]
-                "float alpha=0.6*(1.0-progress);" +
-                //缩放比例 [1.0,1.8]
-                "float scale=1.0+(1.5-1.0)*progress;" +
-                //放大纹理坐标，  根据放大比列 ，得到放大的坐标[0,0,][0,1][1,1][1,0]
-                "float soulX=0.5+(vCoordinate.x-0.5)/scale;\n" +
-                "float soulY=0.5+(vCoordinate.y-0.5)/scale;\n" +
-                "vec2 soulTextureCoords=vec2(soulX,soulY);" +
-                //获取对应放大的纹理像素
-                "vec4 soulMask=texture2D(uSoulTexture,soulTextureCoords);" +
-                "vec4 color=texture2D(vTexture,vCoordinate);" +
-                "if(drawFBO==0){" +
-                "gl_FragColor=color*(1.0-alpha)+soulMask*alpha;" +
-                "}else{" +
-                "gl_FragColor=vec4(color.r,color.g,color.b,vAlpha);}" +
+                "void main() {" +
+                // 透明度[0,0.4]
+                "float alpha = 0.6 * (1.0 - progress);" +
+                // 缩放比例[1.0,1.8]
+                "float scale = 1.0 + (1.5 - 1.0) * progress;" +
+
+                // 放大纹理坐标
+                // 根据放大比例，得到放大纹理坐标 [0,0],[0,1],[1,1],[1,0]
+                "float soulX = 0.5 + (vCoordinate.x - 0.5) / scale;\n" +
+                "float soulY = 0.5 + (vCoordinate.y - 0.5) / scale;\n" +
+                "vec2 soulTextureCoords = vec2(soulX, soulY);" +
+                // 获取对应放大纹理坐标下的纹素(颜色值rgba)
+                "vec4 soulMask = texture2D(uSoulTexture, soulTextureCoords);" +
+
+                "vec4 color = texture2D(uTexture, vCoordinate);" +
+
+                "if (drawFBO == 0) {" +
+                // 颜色混合 默认颜色混合方程式 = mask * (1.0-alpha) + weakMask * alpha
+                "    gl_FragColor = color * (1.0 - alpha) + soulMask * alpha;" +
+                "} else {" +
+                "   gl_FragColor = vec4(color.r, color.g, color.b, vAlpha);" +
+                "}" +
                 "}"
 
         //黑白画面

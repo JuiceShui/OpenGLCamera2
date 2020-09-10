@@ -14,8 +14,10 @@ class SimpleRender : GLSurfaceView.Renderer {
         //开启混合模式
         GLES20.glEnable(GLES20.GL_BLEND)
         // FIXME: 2020/9/8
-        //配置混合算法  TODO GL_SRC_ALPHA会黑屏？？？为什么
-        GLES20.glBlendFunc(GLES20.GL_DST_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        //配置混合算法  TODO GL_SRC_ALPHA会黑屏？？？为什么  问题解决！
+        // ----->>>glEnableVertexAttribArray只用于启动顶点，不是用来启动所有句柄的
+        // ，但为什么启动其他会导致异常暂时不知但问题造成的已知
+        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
         val textureId = OpenGLTools.genTexture(mDrawers.size)
         for ((id, drawer) in mDrawers.withIndex()) {
             drawer.setTextureID(textureId[id])

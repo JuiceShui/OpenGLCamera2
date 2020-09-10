@@ -146,10 +146,9 @@ class VideoDrawer : IDrawer {
     }
 
     fun onDraw() {
+        //只用于启动顶点
         GLES20.glEnableVertexAttribArray(mVertexHandler)
         GLES20.glEnableVertexAttribArray(mCoordinateHandler)
-        GLES20.glEnableVertexAttribArray(mMatrixHandler)
-        GLES20.glEnableVertexAttribArray(mAlphaHandler)
         GLES20.glUniformMatrix4fv(
             mMatrixHandler, 1,
             false, mMatrix, 0

@@ -11,7 +11,7 @@ import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 
 class SoulDrawer : IDrawer {
-    private val VERTEX = floatArrayOf(
+    private val DEF_VERTEX = floatArrayOf(
         -1f, 1f,
         1f, 1f,
         1f, -1f,
@@ -33,6 +33,7 @@ class SoulDrawer : IDrawer {
         0, 1, 2,
         2, 3, 0
     )
+    private var VERTEX = DEF_VERTEX
     private lateinit var mVideoSize: Size
     private lateinit var mScreenSize: Size
     private var mVertexHandler = -1
@@ -76,9 +77,7 @@ class SoulDrawer : IDrawer {
     private var mModifyTime: Long = -1L
 
     init {
-        mVertexBuffer = OpenGLTools.getFloatBuffer(VERTEX)
-        mCoordinateBuffer = OpenGLTools.getFloatBuffer(COORDINATE)
-        mOrderBuffer = OpenGLTools.getShortBuffer(ORDER)
+        initPos()
     }
 
     override fun draw() {
@@ -91,8 +90,9 @@ class SoulDrawer : IDrawer {
             updateFBO()
             //激活soul纹理单元
             activeSoulTexture()
+            activeDefTexture()
             //-----------
-            activeTexture()
+            //activeTexture()
             updateTexture()
             onDraw()
         }
@@ -187,8 +187,8 @@ class SoulDrawer : IDrawer {
     fun onDraw() {
         GLES20.glEnableVertexAttribArray(mVertexHandler)
         GLES20.glEnableVertexAttribArray(mCoordinateHandler)
-        GLES20.glEnableVertexAttribArray(mMatrixHandler)
-        GLES20.glEnableVertexAttribArray(mAlphaHandler)
+        GLES20.glUniform1f(mProgressHandler, (System.currentTimeMillis() - mModifyTime) / 500f)
+        GLES20.glUniform1i(mDrawFBOHandler, mDrawFBO)
         GLES20.glUniformMatrix4fv(
             mMatrixHandler, 1,
             false, mMatrix, 0
@@ -300,15 +300,83 @@ class SoulDrawer : IDrawer {
     }
 
     fun activeSoulTexture() {
-
+        activeTexture(GLES20.GL_TEXTURE_2D, mSoulTextureId, 0, mSoulTextureHandler)
     }
 
     fun activeDefTexture() {
-
+        activeTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, mTextureId, 1, mTextureHanlder)
     }
 
     fun updateFBO() {
+        //创建fbo纹理
+        if (mSoulTextureId == -1) {
+            mSoulTextureId = OpenGLTools.createFBOTexture(mVideoSize.width, mVideoSize.height)
+        }
+        //创建FBO
+        if (mSoulFrameBuffer == -1) {
+            mSoulFrameBuffer = OpenGLTools.createFrameBuffer()
+        }
+        //渲染到fbo
+        if (System.currentTimeMillis() - mModifyTime > 500) {
+            mModifyTime = System.currentTimeMillis()
+            //绑定fbo
+            OpenGLTools.bindFBO(mSoulFrameBuffer, mSoulTextureId)
+            //配置FBO窗口
+            configFBOViewport()
+            //-------------执行正常画面的渲染，将画面渲染到FBO-------
 
+            //激活默认纹理
+            activeDefTexture()
+            //更新纹理
+            updateTexture()
+            //绘制到FBO
+            onDraw()
+            //-----------------------------------------------------
+            //解绑FBO
+            OpenGLTools.unbindFBO()
+            //恢复默认绘制窗口
+            configDefViewport()
+        }
+    }
+
+    fun activeTexture(type: Int, textureId: Int, index: Int, textureHandler: Int) {
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + index)
+        GLES20.glBindTexture(type, textureId)
+        GLES20.glUniform1i(textureHandler, index)
+        GLES20.glTexParameterf(type, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR.toFloat())
+        GLES20.glTexParameterf(type, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR.toFloat())
+        GLES20.glTexParameterf(type, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE.toFloat())
+        GLES20.glTexParameterf(type, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE.toFloat())
+    }
+
+    fun configFBOViewport() {
+        mDrawFBO = 1
+        // 将变换矩阵回复为单位矩阵（将画面拉升到整个窗口大小，
+        // 设置窗口比例和FBO纹理比例一致，画面刚好可以正常绘制到FBO纹理上）
+        Matrix.setIdentityM(mMatrix, 0)
+        //设置颠倒的顶点坐标
+        VERTEX = REVERSE_VERTEX
+        //重新初始化顶点坐标
+        initPos()
+        GLES20.glViewport(0, 0, mVideoSize.width, mVideoSize.height)
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+    }
+
+    fun configDefViewport() {
+        mDrawFBO = 0
+        mMatrix = null
+        VERTEX = DEF_VERTEX
+        initPos()
+        initTranslateMatrix()
+        //恢复窗口
+        GLES20.glViewport(0, 0, mScreenSize.width, mScreenSize.height)
+    }
+
+    fun initPos() {
+        mVertexBuffer = OpenGLTools.getFloatBuffer(VERTEX)
+        mCoordinateBuffer = OpenGLTools.getFloatBuffer(COORDINATE)
+        mOrderBuffer = OpenGLTools.getShortBuffer(ORDER)
     }
 
     fun translate(dx: Float, dy: Float) {
